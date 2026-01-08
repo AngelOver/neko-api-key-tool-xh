@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Typography, Table, Tag, Spin, Card, Collapse, Toast, Space, Tabs } from '@douyinfe/semi-ui';
-import { IconSearch, IconCopy, IconDownload } from '@douyinfe/semi-icons';
+import { Button, Input, Typography, Table, Tag, Spin, Card, Collapse, Toast, Space, Tabs, DatePicker } from '@douyinfe/semi-ui';
+import { IconSearch, IconCopy, IconDownload, IconCalendar } from '@douyinfe/semi-icons';
 import { API, timestamp2string, copy } from '../helpers';
 import { stringToColor } from '../helpers/render';
 import { ITEMS_PER_PAGE } from '../constants';
@@ -37,13 +37,22 @@ function renderUseTime(type) {
 }
 
 const LogsTable = () => {
-    const [apikey, setAPIKey] = useState('');
+    const [apikey, setAPIKey] = useState(() => {
+        return localStorage.getItem('apikey') || '';
+    });
     const [activeTabKey, setActiveTabKey] = useState('');
     const [tabData, setTabData] = useState({});
     const [loading, setLoading] = useState(false);
     const [activeKeys, setActiveKeys] = useState([]);
     const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
     const [baseUrl, setBaseUrl] = useState('');
+    const [dateRange, setDateRange] = useState(() => {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        return [start, end];
+    });
     const baseUrls = JSON.parse(process.env.REACT_APP_BASE_URL);  // 解析环境变量
 
     useEffect(() => {
@@ -379,16 +388,38 @@ const LogsTable = () => {
 
     const activeTabData = tabData[activeTabKey] || { logs: [], balance: 0, usage: 0, accessdate: "未知", tokenValid: false };
 
+    // 根据日期范围筛选日志
+    const filteredLogs = activeTabData.logs.filter(log => {
+        if (dateRange.length !== 2 || !dateRange[0] || !dateRange[1]) {
+            return true;
+        }
+        const logTime = log.created_at * 1000; // 转换为毫秒
+        const startTime = new Date(dateRange[0]).getTime();
+        const endTime = new Date(dateRange[1]).getTime();
+        return logTime >= startTime && logTime <= endTime;
+    });
+
     const renderContent = () => (
         <>
             <Card style={{ marginTop: 24 }}>
-                <Input
-                    showClear
-                    value={apikey}
-                    onChange={(value) => setAPIKey(value)}
-                    placeholder="请输入要查询的令牌 sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    prefix={<IconSearch />}
-                    suffix={
+                <Space vertical align="start" spacing="medium" style={{ width: '100%' }}>
+                    <Space style={{ width: '100%' }}>
+                        <Input
+                            showClear
+                            value={apikey}
+                            onChange={(value) => {
+                                setAPIKey(value);
+                                localStorage.setItem('apikey', value);
+                            }}
+                            placeholder="请输入要查询的令牌 sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                            prefix={<IconSearch />}
+                            style={{ width: 500 }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    fetchData();
+                                }
+                            }}
+                        />
                         <Button
                             type='primary'
                             theme="solid"
@@ -398,13 +429,61 @@ const LogsTable = () => {
                         >
                             查询
                         </Button>
-                    }
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            fetchData();
-                        }
-                    }}
-                />
+                    </Space>
+                    <Space>
+                        <DatePicker
+                            type="dateTimeRange"
+                            placeholder={['开始时间', '结束时间']}
+                            value={dateRange}
+                            onChange={(value) => setDateRange(value || [new Date(), new Date()])}
+                            style={{ width: 420 }}
+                            format="yyyy-MM-dd HH:mm:ss"
+                        />
+                        <Button
+                            type="secondary"
+                            icon={<IconCalendar />}
+                            onClick={() => {
+                                const start = new Date();
+                                start.setHours(0, 0, 0, 0);
+                                const end = new Date();
+                                end.setHours(23, 59, 59, 999);
+                                setDateRange([start, end]);
+                            }}
+                        >
+                            今天
+                        </Button>
+                        <Button
+                            type="tertiary"
+                            onClick={() => {
+                                const end = new Date();
+                                end.setHours(23, 59, 59, 999);
+                                const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+                                start.setHours(0, 0, 0, 0);
+                                setDateRange([start, end]);
+                            }}
+                        >
+                            近一周
+                        </Button>
+                        <Button
+                            type="tertiary"
+                            onClick={() => {
+                                const end = new Date();
+                                end.setHours(23, 59, 59, 999);
+                                const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+                                start.setHours(0, 0, 0, 0);
+                                setDateRange([start, end]);
+                            }}
+                        >
+                            近一月
+                        </Button>
+                        <Button
+                            type="tertiary"
+                            onClick={() => setDateRange([])}
+                        >
+                            清除筛选
+                        </Button>
+                    </Space>
+                </Space>
             </Card>
             <Card style={{ marginTop: 24 }}>
                 <Collapse activeKey={activeKeys} onChange={(keys) => setActiveKeys(keys)}>
@@ -455,7 +534,7 @@ const LogsTable = () => {
                             <Spin spinning={loading}>
                                 <Table
                                     columns={columns}
-                                    dataSource={activeTabData.logs}
+                                    dataSource={filteredLogs}
                                     pagination={{
                                         pageSize: pageSize,
                                         hideOnSinglePage: true,
@@ -464,7 +543,7 @@ const LogsTable = () => {
                                         onPageSizeChange: (pageSize) => setPageSize(pageSize),
                                         showTotal: (total) => `共 ${total} 条`,
                                         showQuickJumper: true,
-                                        total: activeTabData.logs.length,
+                                        total: filteredLogs.length,
                                         style: { marginTop: 12 },
                                     }}
                                 />
