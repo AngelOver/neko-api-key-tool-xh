@@ -356,7 +356,7 @@ const LogsTable = () => {
             '用时': log.use_time,
             '提示': log.prompt_tokens,
             '补全': log.completion_tokens,
-            '花费': (log.quota / 500000).toFixed(10),
+            '花费($)': (log.quota / 500000).toFixed(10),
             '详情': log.content,
         }));
         const csvString = '\ufeff' + Papa.unparse(csvData);
