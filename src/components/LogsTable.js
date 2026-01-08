@@ -348,17 +348,15 @@ const LogsTable = () => {
         copyText(info);
     };
 
-    const exportCSV = (e) => {
+    const exportCSV = (e, logsData) => {
         e.stopPropagation();
-        const activeTabData = tabData[activeTabKey] || { logs: [] };
-        const { logs } = activeTabData;
-        const csvData = logs.map(log => ({
+        const csvData = logsData.map(log => ({
             '时间': renderTimestamp(log.created_at),
             '模型': log.model_name,
             '用时': log.use_time,
             '提示': log.prompt_tokens,
             '补全': log.completion_tokens,
-            '花费': log.quota,
+            '花费': (log.quota / 500000).toFixed(10),
             '详情': log.content,
         }));
         const csvString = '\ufeff' + Papa.unparse(csvData);
@@ -525,7 +523,7 @@ const LogsTable = () => {
                             extra={
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
                                     <Tag shape='circle' color='green' style={{ marginRight: 5 }}>计算汇率：$1 = 50 0000 tokens</Tag>
-                                    <Button icon={<IconDownload />} theme='borderless' type='primary' onClick={(e) => exportCSV(e)} disabled={!activeTabData.tokenValid || activeTabData.logs.length === 0}>
+                                    <Button icon={<IconDownload />} theme='borderless' type='primary' onClick={(e) => exportCSV(e, filteredLogs)} disabled={!activeTabData.tokenValid || filteredLogs.length === 0}>
                                         导出为CSV文件
                                     </Button>
                                 </div>
