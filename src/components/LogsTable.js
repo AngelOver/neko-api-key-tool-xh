@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Input, Typography, Table, Tag, Spin, Card, Collapse, Toast, Space, Tabs, DatePicker } from '@douyinfe/semi-ui';
 import { IconSearch, IconCopy, IconDownload, IconCalendar } from '@douyinfe/semi-icons';
-import { API, timestamp2string, copy } from '../helpers';
+import { API, timestamp2string } from '../helpers';
 import { stringToColor } from '../helpers/render';
 import { ITEMS_PER_PAGE } from '../constants';
 import { renderModelPrice, renderQuota } from '../helpers/render';
@@ -53,14 +53,14 @@ const LogsTable = () => {
         end.setHours(23, 59, 59, 999);
         return [start, end];
     });
-    const baseUrls = JSON.parse(process.env.REACT_APP_BASE_URL);  // 解析环境变量
+    const baseUrls = useMemo(() => JSON.parse(process.env.REACT_APP_BASE_URL), []);  // 解析环境变量
 
     useEffect(() => {
         // 默认设置第一个地址为baseUrl
         const firstKey = Object.keys(baseUrls)[0];
         setActiveTabKey(firstKey);
         setBaseUrl(baseUrls[firstKey]);
-    }, []);
+    }, [baseUrls]);
 
     const handleTabChange = (key) => {
         setActiveTabKey(key);
@@ -122,13 +122,9 @@ const LogsTable = () => {
         try {
             if (process.env.REACT_APP_SHOW_DETAIL === "true") {
                 const logRes = await API.get(`${baseUrl}/api/log/token?key=${apikey}`);
-                const { success, message, data: logData } = logRes.data;
+                const { success, data: logData } = logRes.data;
                 if (success) {
                     newTabData.logs = logData.reverse();
-                    let quota = 0;
-                    for (let i = 0; i < logData.length; i++) {
-                        quota += logData[i].quota;
-                    }
                     setActiveKeys(['1', '2']); // 自动展开两个折叠面板
                 } else {
                     Toast.error('查询调用详情失败，请输入正确的令牌');
