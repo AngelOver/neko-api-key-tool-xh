@@ -125,6 +125,7 @@ const LogsTable = () => {
                 const { success, data: logData } = logRes.data;
                 if (success) {
                     newTabData.logs = logData.reverse();
+                    newTabData.tokenValid = true; // 日志查询成功时也设置为有效
                     setActiveKeys(['1', '2']); // 自动展开两个折叠面板
                 } else {
                     Toast.error('查询调用详情失败，请输入正确的令牌');
